@@ -185,17 +185,28 @@ async function stopTracking() {
 }
 
 async function addNoteToLatest(note) {
+  note = (note || "").trim();
+  if (!note) return;
   const running = await getRunningLog();
+  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
   if (running) {
-    await db.logs.update(running.id, { note });
+    const prev = running.note ? running.note + "\n" : "";
+    await db.logs.update(running.id, { note: prev + `${ts} — ${note}` });
     return;
   }
+
   // If nothing running, attach to latest today
   const today = dayKeyFrom(Date.now());
   const latest = await db.logs.where("dayKey").equals(today).reverse().sortBy("startTs");
   const last = latest[0];
-  if (last) await db.logs.update(last.id, { note });
+
+  if (last) {
+    const prev = last.note ? last.note + "\n" : "";
+    await db.logs.update(last.id, { note: prev + `${ts} — ${note}` });
+  }
 }
+
 
 async function loadTodayLogs() {
   const today = dayKeyFrom(Date.now());
