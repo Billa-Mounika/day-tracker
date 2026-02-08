@@ -166,7 +166,8 @@ function setActiveButton(catId) {
 }
 
 async function getRunningLog() {
-  return db.logs.where("endTs").equals(null).first();
+  // IndexedDB keys can't be null in indexed queries, so use a filter
+  return db.logs.filter(l => l.endTs === null).first();
 }
 
 async function startOrSwitch(categoryId) {
