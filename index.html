@@ -1,0 +1,164 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Day Timeline Tracker</title>
+
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="theme-color" content="#111111" />
+
+  <!-- iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="title">Day Timeline Tracker</div>
+      <div class="subtitle">Tap to switch activities • Offline-first</div>
+    </div>
+    <div class="top-actions">
+      <button id="btnEnable" class="btn secondary">Enable Reminders</button>
+      <button id="btnInstallHelp" class="btn ghost">Install Help</button>
+    </div>
+  </header>
+
+  <main class="container">
+    <section class="card">
+      <div class="now-row">
+        <div class="now-left">
+          <div class="label">Currently</div>
+          <div id="currentActivity" class="current">—</div>
+          <div id="currentSince" class="since">Not tracking</div>
+        </div>
+        <div class="now-right">
+          <button id="btnStop" class="btn danger">Stop</button>
+          <button id="btnNote" class="btn">Add Note</button>
+        </div>
+      </div>
+
+      <div class="grid" id="categoryGrid"></div>
+
+      <div class="settings-row">
+        <div class="setting">
+          <label>Idle reminder (minutes)</label>
+          <select id="idleMinutes">
+            <option>15</option>
+            <option selected>30</option>
+            <option>45</option>
+            <option>60</option>
+          </select>
+        </div>
+        <div class="setting">
+          <label>Wind-up time</label>
+          <input id="windupTime" type="time" value="21:45" />
+        </div>
+        <div class="setting">
+          <label>Reminders</label>
+          <label class="switch">
+            <input id="remindersEnabled" type="checkbox" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="setting status">
+          <div class="label">Notification status</div>
+          <div id="notifStatus" class="small">Not requested</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <button class="tab active" data-tab="timeline">Timeline</button>
+        <button class="tab" data-tab="stats">Stats</button>
+        <button class="tab" data-tab="settings">Settings</button>
+      </div>
+
+      <div id="tab-timeline" class="tabpane show">
+        <div class="pane-actions">
+          <button id="btnWindupNow" class="btn secondary">Wind-up Now</button>
+          <button id="btnExport" class="btn ghost">Export JSON</button>
+          <button id="btnClearToday" class="btn ghost danger-outline">Clear Today</button>
+        </div>
+        <div id="timelineList" class="list"></div>
+      </div>
+
+      <div id="tab-stats" class="tabpane">
+        <div class="stats" id="statsBox"></div>
+      </div>
+
+      <div id="tab-settings" class="tabpane">
+        <div class="help">
+          <h3>Using this on iPhone like an app</h3>
+          <ol>
+            <li>Open this site in <b>Safari</b>.</li>
+            <li>Tap <b>Share</b> → <b>Add to Home Screen</b>.</li>
+            <li>Open it from the new icon.</li>
+            <li>Tap <b>Enable Reminders</b> and allow notifications.</li>
+          </ol>
+          <p class="small muted">
+            Reminder note: On web/PWA, notifications are most reliable when the app is installed and you’ve allowed notifications.
+          </p>
+        </div>
+
+        <div class="help">
+          <h3>Reminder behavior (important)</h3>
+          <ul>
+            <li><b>Idle reminder:</b> reminds you if you haven’t switched activities for the chosen minutes.</li>
+            <li><b>Wind-up:</b> reminds you at your chosen time to review/edit your day.</li>
+            <li><b>Offline:</b> your data is stored locally on your phone (IndexedDB). No account needed.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- Note Modal -->
+  <dialog id="noteDialog" class="dialog">
+    <form method="dialog" class="dialog-body">
+      <h3>Add a note</h3>
+      <p class="small muted">This note will attach to the currently running activity (or the latest one).</p>
+      <textarea id="noteText" rows="4" placeholder="Type your note..."></textarea>
+      <div class="dialog-actions">
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button id="btnSaveNote" class="btn" value="default">Save</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- Edit Modal -->
+  <dialog id="editDialog" class="dialog">
+    <form method="dialog" class="dialog-body">
+      <h3>Edit block</h3>
+      <div class="form-grid">
+        <label>Category
+          <select id="editCategory"></select>
+        </label>
+        <label>Start
+          <input id="editStart" type="datetime-local" />
+        </label>
+        <label>End
+          <input id="editEnd" type="datetime-local" />
+        </label>
+        <label>Note
+          <input id="editNote" type="text" placeholder="optional" />
+        </label>
+      </div>
+      <div class="dialog-actions">
+        <button class="btn ghost danger-outline" id="btnDeleteBlock" value="default">Delete</button>
+        <span class="spacer"></span>
+        <button class="btn ghost" value="cancel">Cancel</button>
+        <button id="btnSaveEdit" class="btn" value="default">Save</button>
+      </div>
+      <input type="hidden" id="editId" />
+    </form>
+  </dialog>
+
+  <!-- Dexie (IndexedDB helper) -->
+  <script src="https://unpkg.com/dexie@3.2.5/dist/dexie.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
