@@ -24,6 +24,15 @@ db.version(1).stores({
   settings: "key",
 });
 
+
+
+db.version(2).stores({
+  logs: "++id,categoryId,startTs,endTs,dayKey",
+  settings: "key",
+  reminders: "++id,categoryId,type,date,time,active,done,lastFiredTs,snoozeUntilTs"
+}).upgrade(async (tx) => {
+  // Upgrade hook reserved (no-op)
+});
 function dayKeyFrom(ts) {
   const d = new Date(ts);
   // local day key YYYY-MM-DD
@@ -88,6 +97,22 @@ const editNote = $("editNote");
 const btnSaveEdit = $("btnSaveEdit");
 const btnDeleteBlock = $("btnDeleteBlock");
 
+
+
+// Reminders UI
+const remCategory = $("remCategory");
+const remTitle = $("remTitle");
+const remType = $("remType");
+const remDateRow = $("remDateRow");
+const remDate = $("remDate");
+const remTime = $("remTime");
+const remRepeatRow = $("remRepeatRow");
+const remRepeat = $("remRepeat");
+const btnAddReminder = $("btnAddReminder");
+const remFilterCat = $("remFilterCat");
+const reminderList = $("reminderList");
+
+let reminderCheckTimer = null;
 let reminderTimers = { idle: null, windup: null, ticker: null };
 let lastSwitchAt = Date.now();
 let lastReminderAt = 0;
@@ -141,8 +166,7 @@ function setActiveButton(catId) {
 }
 
 async function getRunningLog() {
-  // IndexedDB keys can't be null in indexed queries, so use a filter
-  return db.logs.filter(l => l.endTs === null).first();
+  return db.logs.where("endTs").equals(null).first();
 }
 
 async function startOrSwitch(categoryId) {
@@ -185,28 +209,17 @@ async function stopTracking() {
 }
 
 async function addNoteToLatest(note) {
-  note = (note || "").trim();
-  if (!note) return;
   const running = await getRunningLog();
-  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
   if (running) {
-    const prev = running.note ? running.note + "\n" : "";
-    await db.logs.update(running.id, { note: prev + `${ts} — ${note}` });
+    await db.logs.update(running.id, { note });
     return;
   }
-
   // If nothing running, attach to latest today
   const today = dayKeyFrom(Date.now());
   const latest = await db.logs.where("dayKey").equals(today).reverse().sortBy("startTs");
   const last = latest[0];
-
-  if (last) {
-    const prev = last.note ? last.note + "\n" : "";
-    await db.logs.update(last.id, { note: prev + `${ts} — ${note}` });
-  }
+  if (last) await db.logs.update(last.id, { note });
 }
-
 
 async function loadTodayLogs() {
   const today = dayKeyFrom(Date.now());
@@ -265,14 +278,9 @@ async function renderTimeline() {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
-    "&": "&amp;",
-    "<": "&lt;",
-    ">": "&gt;",
-    "\"": "&quot;",
-    "'": "&#39;"
+    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
   }[c]));
 }
-
 
 async function renderStats() {
   const logs = await loadTodayLogs();
@@ -478,6 +486,8 @@ async function enableReminders() {
     await navigator.serviceWorker.ready;
   } catch(e) {}
   await scheduleRemindersFromUI();
+      startReminderChecker();
+startReminderChecker();
 }
 
 /* -------- Wind-up screen (simple) -------- */
@@ -517,6 +527,206 @@ async function exportJSON() {
 /* -------- Install help -------- */
 function showInstallHelp() {
   switchTab("settings");
+}
+
+function pad2(n){ return String(n).padStart(2,"0"); }
+function localDateStr(d = new Date()){
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;
+}
+function parseTimeToTodayTs(hhmm) {
+  const [hh, mm] = (hhmm || "00:00").split(":").map(Number);
+  const d = new Date();
+  d.setHours(hh, mm, 0, 0);
+  return d.getTime();
+}
+function monthKey(ts){
+  const d = new Date(ts);
+  return `${d.getFullYear()}-${pad2(d.getMonth()+1)}`;
+}
+function reminderTypeLabel(r){
+  if (r.type === "today") return "Today (repeating)";
+  if (r.type === "date") return `On ${r.date}`;
+  if (r.type === "monthly") return `Monthly on ${r.date?.split("-")[2] || "?"}`;
+  return r.type;
+}
+
+async function seedReminderCategorySelects(){
+  if (!remCategory || !remFilterCat) return;
+  const opts = CATEGORIES.map(c => `<option value="${c.id}">${c.name}</option>`).join("");
+  remCategory.innerHTML = opts;
+  remFilterCat.innerHTML = `<option value="all">All</option>` + opts;
+  remFilterCat.value = "all";
+
+  // Default reminder date to today for convenience
+  if (remDate) remDate.value = localDateStr(new Date());
+}
+
+function updateReminderTypeUI(){
+  if (!remType) return;
+  const t = remType.value;
+  if (t === "today") {
+    remDateRow.style.display = "none";
+    remRepeatRow.style.display = "block";
+  } else {
+    remDateRow.style.display = "block";
+    remRepeatRow.style.display = "none";
+  }
+}
+
+async function addReminderFromUI(){
+  const title = (remTitle.value || "").trim();
+  if (!title) { alert("Please enter a reminder title."); return; }
+
+  const categoryId = remCategory.value;
+  const type = remType.value;
+  const time = remTime.value || "18:30";
+
+  let date = null;
+  let repeatMinutes = null;
+
+  if (type === "today") {
+    repeatMinutes = Number(remRepeat.value || 60);
+  } else {
+    date = remDate.value;
+    if (!date) { alert("Please select a date."); return; }
+  }
+
+  await db.reminders.add({
+    categoryId,
+    title,
+    type,
+    date,            // YYYY-MM-DD for date/monthly, null for today
+    time,            // HH:MM
+    repeatMinutes,   // only for today
+    active: true,
+    done: false,
+    lastFiredTs: 0,
+    snoozeUntilTs: 0,
+    createdTs: Date.now()
+  });
+
+  remTitle.value = "";
+  await renderReminders();
+}
+
+async function loadReminders(){
+  const rows = await db.reminders.toArray();
+  return rows.sort((a,b)=> (a.done - b.done) || ((a.time||"").localeCompare(b.time||"")));
+}
+
+async function renderReminders(){
+  if (!reminderList) return;
+  const all = await loadReminders();
+  const filter = remFilterCat ? remFilterCat.value : "all";
+  const rows = (filter === "all") ? all : all.filter(r => r.categoryId === filter);
+
+  if (!rows.length){
+    reminderList.innerHTML = `<div class="help"><b>No reminders yet.</b><div class="small muted">Add one above.</div></div>`;
+    return;
+  }
+
+  reminderList.innerHTML = "";
+  for (const r of rows){
+    const item = document.createElement("div");
+    item.className = "rem-item";
+
+    const dueLabel = reminderTypeLabel(r);
+    const cat = catName(r.categoryId);
+    const statusPill = r.done
+      ? `<span class="pill ok">Done</span>`
+      : (r.active ? `<span class="pill warn">Active</span>` : `<span class="pill info">Paused</span>`);
+
+    item.innerHTML = `
+      <div class="rem-left">
+        <div class="rem-title">${escapeHtml(r.title)}</div>
+        <div class="rem-meta">${escapeHtml(cat)} • ${escapeHtml(dueLabel)} • ${escapeHtml(r.time || "")}${r.type==="today" ? ` • repeat ${r.repeatMinutes}m` : ""}</div>
+        ${statusPill}
+      </div>
+      <div class="rem-actions">
+        <button class="btn secondary" data-done="${r.id}">${r.done ? "Undo" : "Done"}</button>
+        <button class="btn secondary" data-snooze="${r.id}">Snooze 10m</button>
+        <button class="btn secondary" data-toggle="${r.id}">${r.active ? "Pause" : "Resume"}</button>
+        <button class="btn secondary" data-del="${r.id}">Delete</button>
+      </div>
+    `;
+
+    item.querySelector(`[data-done="${r.id}"]`).addEventListener("click", async ()=>{
+      await db.reminders.update(r.id, { done: !r.done });
+      await renderReminders();
+    });
+
+    item.querySelector(`[data-snooze="${r.id}"]`).addEventListener("click", async ()=>{
+      const until = Date.now() + 10*60*1000;
+      await db.reminders.update(r.id, { snoozeUntilTs: until, active: true, done: false });
+      await renderReminders();
+    });
+
+    item.querySelector(`[data-toggle="${r.id}"]`).addEventListener("click", async ()=>{
+      await db.reminders.update(r.id, { active: !r.active });
+      await renderReminders();
+    });
+
+    item.querySelector(`[data-del="${r.id}"]`).addEventListener("click", async ()=>{
+      if (!confirm("Delete this reminder?")) return;
+      await db.reminders.delete(r.id);
+      await renderReminders();
+    });
+
+    reminderList.appendChild(item);
+  }
+}
+
+async function checkAndFireReminders(){
+  if (!("Notification" in window)) return;
+  if (Notification.permission !== "granted") return;
+
+  const now = Date.now();
+  const today = localDateStr(new Date());
+  const currentDay = new Date().getDate();
+  const currentMonth = monthKey(now);
+
+  const reminders = await db.reminders.toArray();
+
+  for (const r of reminders){
+    if (!r.active || r.done) continue;
+    if (r.snoozeUntilTs && now < r.snoozeUntilTs) continue;
+
+    const dueTodayTs = parseTimeToTodayTs(r.time || "00:00");
+    if (now < dueTodayTs) continue;
+
+    if (r.type === "today") {
+      const repeatMins = Number(r.repeatMinutes || 60);
+      const minGap = repeatMins * 60 * 1000;
+      if (!r.lastFiredTs || (now - r.lastFiredTs) >= minGap) {
+        await notify("Day Tracker", `${catName(r.categoryId)}: ${r.title}`, { type:"reminder", id: r.id });
+        await db.reminders.update(r.id, { lastFiredTs: now });
+      }
+    }
+
+    if (r.type === "date") {
+      if (r.date !== today) continue;
+      if (!r.lastFiredTs) {
+        await notify("Day Tracker", `${catName(r.categoryId)}: ${r.title}`, { type:"reminder", id: r.id });
+        await db.reminders.update(r.id, { lastFiredTs: now });
+      }
+    }
+
+    if (r.type === "monthly") {
+      const dd = r.date ? Number(r.date.split("-")[2]) : null;
+      if (!dd || dd !== currentDay) continue;
+
+      const lastMonth = r.lastFiredTs ? monthKey(r.lastFiredTs) : "";
+      if (lastMonth !== currentMonth) {
+        await notify("Day Tracker", `${catName(r.categoryId)}: ${r.title}`, { type:"reminder", id: r.id });
+        await db.reminders.update(r.id, { lastFiredTs: now });
+      }
+    }
+  }
+}
+
+function startReminderChecker(){
+  if (reminderCheckTimer) clearInterval(reminderCheckTimer);
+  reminderCheckTimer = setInterval(checkAndFireReminders, 60 * 1000);
 }
 
 /* -------- init -------- */
@@ -565,7 +775,13 @@ async function init() {
   windupTimeInput.addEventListener("change", scheduleRemindersFromUI);
   remindersEnabledToggle.addEventListener("change", scheduleRemindersFromUI);
 
-  $("btnWindupNow").addEventListener("click", windupNow);
+  
+
+  // Reminders UI
+  remType.addEventListener("change", updateReminderTypeUI);
+  btnAddReminder.addEventListener("click", addReminderFromUI);
+  remFilterCat.addEventListener("change", renderReminders);
+$("btnWindupNow").addEventListener("click", windupNow);
   $("btnExport").addEventListener("click", exportJSON);
   $("btnClearToday").addEventListener("click", clearToday);
 

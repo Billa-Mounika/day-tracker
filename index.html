@@ -73,7 +73,8 @@
 
       <div class="tabs">
         <button class="tab active" data-tab="timeline">Timeline</button>
-        <button class="tab" data-tab="stats">Stats</button>
+        <button class="tab" data-tab="reminders">Reminders</button>
+<button class="tab" data-tab="stats">Stats</button>
         <button class="tab" data-tab="settings">Settings</button>
       </div>
 
@@ -158,7 +159,62 @@
   </dialog>
 
   <!-- Dexie (IndexedDB helper) -->
-  <script src="dexie.min.js"></script>
+  <script src="https://unpkg.com/dexie@3.2.5/dist/dexie.min.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
+
+
+<section id="tab-reminders" class="tabpane">
+  <div class="card">
+    <h3>Reminders</h3>
+    <p class="small muted">
+      Add reminders for any category (Work/Cooking/Commute/Kids/Study/Rest/Exercise/Social).
+      Today reminders can repeat until you mark them Done.
+    </p>
+
+    <div class="rem-form">
+      <label class="label">Category</label>
+      <select id="remCategory" class="input"></select>
+
+      <label class="label">Title</label>
+      <input id="remTitle" class="input" placeholder="e.g., Homework / Standup update / Workout" />
+
+      <label class="label">Type</label>
+      <select id="remType" class="input">
+        <option value="today">Today (repeat until done)</option>
+        <option value="date">On a date (one-time)</option>
+        <option value="monthly">Monthly (repeat every month)</option>
+      </select>
+
+      <div id="remDateRow" style="display:none;">
+        <label class="label">Date</label>
+        <input id="remDate" class="input" type="date" />
+      </div>
+
+      <label class="label">Time</label>
+      <input id="remTime" class="input" type="time" value="18:30" />
+
+      <div id="remRepeatRow">
+        <label class="label">Repeat every (minutes)</label>
+        <select id="remRepeat" class="input">
+          <option value="15">15</option>
+          <option value="30">30</option>
+          <option value="60" selected>60</option>
+          <option value="90">90</option>
+        </select>
+      </div>
+
+      <button id="btnAddReminder" class="btn primary" type="button">Add Reminder</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="row-between">
+      <h3>My reminders</h3>
+      <select id="remFilterCat" class="input" style="max-width:180px;"></select>
+    </div>
+
+    <div id="reminderList" class="rem-list"></div>
+  </div>
+</section>
