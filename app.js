@@ -775,12 +775,12 @@ async function init() {
   windupTimeInput.addEventListener("change", scheduleRemindersFromUI);
   remindersEnabledToggle.addEventListener("change", scheduleRemindersFromUI);
 
-  
-
   // Reminders UI
-  remType.addEventListener("change", updateReminderTypeUI);
-  btnAddReminder.addEventListener("click", addReminderFromUI);
-  remFilterCat.addEventListener("change", renderReminders);
+  if (remType && btnAddReminder && remFilterCat) {
+    remType.addEventListener("change", updateReminderTypeUI);
+    btnAddReminder.addEventListener("click", addReminderFromUI);
+    remFilterCat.addEventListener("change", renderReminders);
+  }
 $("btnWindupNow").addEventListener("click", windupNow);
   $("btnExport").addEventListener("click", exportJSON);
   $("btnClearToday").addEventListener("click", clearToday);
