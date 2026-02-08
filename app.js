@@ -253,9 +253,14 @@ async function renderTimeline() {
 
 function escapeHtml(s) {
   return String(s).replace(/[&<>"']/g, (c) => ({
-    "&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#39;"
   }[c]));
 }
+
 
 async function renderStats() {
   const logs = await loadTodayLogs();
