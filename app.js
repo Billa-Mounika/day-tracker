@@ -210,16 +210,29 @@ async function stopTracking() {
 }
 
 async function addNoteToLatest(note) {
+  note = (note || "").trim();
+  if (!note) return;
+
+  const ts = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  const line = `${ts} — ${note}`;
+
   const running = await getRunningLog();
   if (running) {
-    await db.logs.update(running.id, { note });
+    const prev = running.note ? running.note + "
+" : "";
+    await db.logs.update(running.id, { note: prev + line });
     return;
   }
+
   // If nothing running, attach to latest today
   const today = dayKeyFrom(Date.now());
   const latest = await db.logs.where("dayKey").equals(today).reverse().sortBy("startTs");
   const last = latest[0];
-  if (last) await db.logs.update(last.id, { note });
+  if (last) {
+    const prev = last.note ? last.note + "
+" : "";
+    await db.logs.update(last.id, { note: prev + line });
+  }
 }
 
 async function loadTodayLogs() {
@@ -450,6 +463,9 @@ async function scheduleRemindersFromUI() {
 
   // wind-up scheduler: schedule next occurrence
   scheduleNextWindup();
+
+  // custom reminders checker
+  startReminderChecker();
 }
 
 function scheduleNextWindup() {
@@ -487,8 +503,7 @@ async function enableReminders() {
     await navigator.serviceWorker.ready;
   } catch(e) {}
   await scheduleRemindersFromUI();
-      startReminderChecker();
-startReminderChecker();
+  startReminderChecker();
 }
 
 /* -------- Wind-up screen (simple) -------- */
@@ -741,6 +756,11 @@ async function init() {
   // Load settings
   await loadSettings();
 
+
+  // Reminders selects
+  await seedReminderCategorySelects();
+  updateReminderTypeUI();
+  await renderReminders();
   // Tabs
   for (const b of document.querySelectorAll(".tab")) {
     b.addEventListener("click", () => switchTab(b.dataset.tab));

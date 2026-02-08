@@ -1,5 +1,5 @@
 /* Day Timeline Tracker - Service Worker (offline cache) */
-const CACHE_NAME = "day-tracker-v3";
+const CACHE_NAME = "day-tracker-v5";
 const ASSETS = [
   "./",
   "./index.html",

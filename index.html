@@ -11,6 +11,7 @@
 
   <!-- iOS -->
   <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <link rel="apple-touch-icon" href="icons/icon-180.png">
 
@@ -69,13 +70,13 @@
           <div class="label">Notification status</div>
           <div id="notifStatus" class="small">Not requested</div>
         </div>
-      </div><section id="tab-timeline" class="tabpane show"> 
+      </div>
 
       <div class="tabs">
-          <button class="tab active" data-tab="timeline">Timeline</button>
-          <button class="tab" data-tab="reminders">Reminders</button>
-          <button class="tab" data-tab="stats">Stats</button>
-          <button class="tab" data-tab="settings">Settings</button>
+        <button class="tab active" data-tab="timeline">Timeline</button>
+        <button class="tab" data-tab="reminders">Reminders</button>
+        <button class="tab" data-tab="stats">Stats</button>
+        <button class="tab" data-tab="settings">Settings</button>
       </div>
 
       <div id="tab-timeline" class="tabpane show">
@@ -85,6 +86,61 @@
           <button id="btnClearToday" class="btn ghost danger-outline">Clear Today</button>
         </div>
         <div id="timelineList" class="list"></div>
+      </div>
+
+      <div id="tab-reminders" class="tabpane">
+        <div class="help">
+          <h3>Add reminders for any category</h3>
+          <ul>
+            <li><b>Today (repeating):</b> repeats every X minutes for the rest of today.</li>
+            <li><b>Specific date:</b> one-time reminder on that date.</li>
+            <li><b>Monthly:</b> repeats every month on the selected day.</li>
+          </ul>
+        </div>
+
+        <div class="card">
+          <div class="rem-form">
+            <label class="label">Category</label>
+            <select id="remCategory" class="input"></select>
+
+            <label class="label">Reminder</label>
+            <input id="remTitle" class="input" placeholder="e.g., Homework, submit report, buy groceries" />
+
+            <label class="label">Type</label>
+            <select id="remType" class="input">
+              <option value="today" selected>Today (repeating)</option>
+              <option value="date">Specific date</option>
+              <option value="monthly">Monthly</option>
+            </select>
+
+            <div id="remDateRow">
+              <label class="label">Date</label>
+              <input id="remDate" type="date" class="input" />
+            </div>
+
+            <label class="label">Time</label>
+            <input id="remTime" type="time" class="input" value="18:30" />
+
+            <div id="remRepeatRow">
+              <label class="label">Repeat every (minutes)</label>
+              <select id="remRepeat" class="input">
+                <option value="30">30</option>
+                <option value="60" selected>60</option>
+                <option value="90">90</option>
+                <option value="120">120</option>
+              </select>
+            </div>
+
+            <button id="btnAddReminder" class="btn secondary">Add Reminder</button>
+          </div>
+        </div>
+
+        <div class="row-between">
+          <div class="small muted">Your reminders are saved on this device.</div>
+          <select id="remFilterCat" class="input" style="max-width:220px"></select>
+        </div>
+
+        <div id="reminderList" class="rem-list"></div>
       </div>
 
       <div id="tab-stats" class="tabpane">
@@ -101,7 +157,7 @@
             <li>Tap <b>Enable Reminders</b> and allow notifications.</li>
           </ol>
           <p class="small muted">
-            Reminder note: On web/PWA, notifications are most reliable when the app is installed and you’ve allowed notifications.
+            Notifications are most reliable when the app is installed and notifications are allowed.
           </p>
         </div>
 
@@ -110,14 +166,14 @@
           <ul>
             <li><b>Idle reminder:</b> reminds you if you haven’t switched activities for the chosen minutes.</li>
             <li><b>Wind-up:</b> reminds you at your chosen time to review/edit your day.</li>
-            <li><b>Offline:</b> your data is stored locally on your phone (IndexedDB). No account needed.</li>
+            <li><b>Custom reminders:</b> fire while the app is running; installed PWA is most reliable.</li>
+            <li><b>Offline:</b> all data is stored locally on your phone (IndexedDB). No account needed.</li>
           </ul>
         </div>
       </div>
     </section>
   </main>
 
-  <!-- Note Modal -->
   <dialog id="noteDialog" class="dialog">
     <form method="dialog" class="dialog-body">
       <h3>Add a note</h3>
@@ -130,7 +186,6 @@
     </form>
   </dialog>
 
-  <!-- Edit Modal -->
   <dialog id="editDialog" class="dialog">
     <form method="dialog" class="dialog-body">
       <h3>Edit block</h3>
@@ -158,8 +213,7 @@
     </form>
   </dialog>
 
-  <!-- Dexie (IndexedDB helper) -->
-  <script src="dexie.min.js"></script>
-  <script src="app.js"></script>
+  <script src="dexie.min.js" defer></script>
+  <script src="app.js" defer></script>
 </body>
 </html>
