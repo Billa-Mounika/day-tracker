@@ -40,3 +40,4 @@ This version schedules reminders while the app is running (and will show notific
 If you want guaranteed reminders even when the app is completely closed, you can add a push server later (VAPID).
 The Service Worker already includes a push handler stub.
 # day-tracker
+# day-tracker
